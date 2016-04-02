@@ -1,5 +1,8 @@
 # coding=utf-8
-# todo: go on line 158:
+# todo:
+# todo: ** brand dans les mini_product + url_product + url_img
+# todo: ** algorithme de répartition homogène des points: le tester sur pretit exemple, puis ici
+
 # 1)
 # prendre produit 4000286221126 avec categories de:linsen et faire ce qui suit:
 # mettre à jour la base locale en prenant la dernière version de bson
@@ -19,8 +22,10 @@
 # RESOURCES TO PYMONGO API:
 # please consult https://api.mongodb.org/python/current/tutorial.html
 # import json
-
+from __future__ import division
+from collections import Counter
 from pymongo import MongoClient
+import matplotlib.pyplot as plt
 
 
 # endpoint_root = "http://127.0.0.1:28017/off-fr/products/"
@@ -32,6 +37,7 @@ from pymongo import MongoClient
 # print "%r" % len(repos['rows'])
 
 # definition of objects
+# from sympy.galgebra.ncutil import product_derivation
 
 
 class DataEnv:
@@ -39,6 +45,7 @@ class DataEnv:
     Environment for data. Specifies for instance the set of fields for matching
     products to retrieve from the server (Querier)
     """
+
     def __init__(self, set_of_properties):
         """
         :type set_of_properties: [] of properties
@@ -145,11 +152,12 @@ class Querier:
                     assert isinstance(prod, Product)
                     # removing identity product / add product
                     _id_prod = prod.get_id()
-                    if (_id_prod != _id_prod_ref) and not (_id_prod in tmp_matching_products):
-                        tmp_matching_products[_id_prod] = prod
-                    else:
-                        assert isinstance(tmp_matching_products[_id_prod], Product)
-                        tmp_matching_products[_id_prod].incr_intersection_with_ref()
+                    if _id_prod != _id_prod_ref:
+                        if not (_id_prod in tmp_matching_products):
+                            tmp_matching_products[_id_prod] = prod
+                        else:
+                            assert isinstance(tmp_matching_products[_id_prod], Product)
+                            tmp_matching_products[_id_prod].incr_intersection_with_ref()
 
         # build a simple list from the temporary dictionary and return it
         matching_products = list(tmp_matching_products.values())
@@ -157,38 +165,126 @@ class Querier:
         return matching_products
 
 
-class Statistics:
+class Graph:
     """
     Handle statistics:
     - gather and prepare data to show
     - build graph
     """
 
-    def __init__(self, stats_props):
-        self.statsProps = stats_props
+    def __init__(self, stats_props, product_ref, products_others, verbose):
+        assert isinstance(product_ref, Product)
 
-    @staticmethod
-    def prepare_data(product_ref, product_others):
+        self.verbose = verbose
+        self.statsProps = stats_props
+        self.product_ref = product_ref
+        self.xaxis_prod_ref = []
+        self.yaxis_prod_ref = []
+        self.products_matching = products_others
+        # Graph uses its own data set which is a conversion of products_matching
+        self.data_set_ref = []
+        self.data_set_others = []
+        self.xaxis_others = []
+        self.yaxis_others = []
+
+    def show(self):
+        self.prepare_data()
+        self.prepare_graph()
+
+        plt.show()
+
+    def prepare_data(self):
+        # todo:
+        if self.verbose:
+            print ".. preparing the data for the show"
+
+        # preparing product reference
+        mini_prod = {"code": self.product_ref.dic_props["code"],
+                     "generic_name": self.product_ref.dic_props["generic_name"],
+                     # todo
+                     "brand": "",
+                     "url_product": "",
+                     "url_img": "",
+                     "score_proximity": self.product_ref.score_proximity,
+                     "score_nutrition": self.product_ref.score_nutrition,
+                     "x_val_real": self.product_ref.score_proximity,
+                     "y_val_real": self.convert_scoreval_to_note(self.product_ref.score_nutrition),
+                     "x_val_graph": self.product_ref.score_proximity,
+                     "y_val_graph": self.convert_scoreval_to_note(self.product_ref.score_nutrition)
+                     }
+        self.data_set_ref.append(mini_prod)
+
+        for product in products_match:
+            mini_prod = {"code": product.dic_props["code"], "generic_name": product.dic_props["generic_name"],
+                         # todo
+                         "brand": "",
+                         "url_product": "",
+                         "url_img": ""}
+            product.compute_scores(self.product_ref)
+            mini_prod["score_proximity"] = product.score_proximity
+            mini_prod["score_nutrition"] = product.score_nutrition
+            mini_prod["x_val_real"] = product.score_proximity
+            mini_prod["y_val_real"] = self.convert_scoreval_to_note(product.score_nutrition)
+            # todo: will be converted later on (below)
+            mini_prod["x_val_graph"] = mini_prod["x_val_real"]
+            mini_prod["y_val_graph"] = mini_prod["y_val_real"]
+            self.data_set_others.append(mini_prod)
+
+    def prepare_graph(self):
         """
         Prepare data before building the graph:
         - check units for extracted properties are the same. If not, perform a conversion
-        :param product_ref: reference product to compare with the set of other products
-        :param product_others: set of products to be compared statistically with the reference product
         :return:
         """
-        assert isinstance(product_ref, Product)
-        assert isinstance(product_others, Product[:])
-        # todo: code
+        # prepare for product reference
+        self.xaxis_prod_ref.append(self.data_set_ref[0].pop("x_val_graph"))
+        self.yaxis_prod_ref.append(self.data_set_ref[0].pop("y_val_graph"))
 
-        return None
+        # prepare for all other matching products
+        for mini_prod in self.data_set_others:
+            self.xaxis_others.append(mini_prod.pop("x_val_graph"))
+            self.yaxis_others.append(mini_prod.pop("y_val_graph"))
 
-    def uniform_repartition(self):
+        plt.plot(self.xaxis_prod_ref, self.yaxis_prod_ref, 'r-')
+        plt.scatter(self.xaxis_others, self.yaxis_others)
+
+        # verbosity details
+        if self.verbose:
+            print
+            print "Product ref. x / y: %r ∕ %r" % (self.xaxis_prod_ref, self.yaxis_prod_ref)
+            print "Matching products with COUNTER:"
+            print "\t Counter(x): %r" % Counter(self.xaxis_others)
+            print "\t Counter(y): %r" % Counter(self.yaxis_others)
+
+    @staticmethod
+    def uniform_repartition():
         """
         Algorithm of " Uniformly Distributed Random Points Inside a Circle (2)" here:
         http://narimanfarsad.blogspot.ch/2012/11/uniformly-distributed-points-inside.html
         :return:
         """
+        pass
         # todo: implement
+
+    def convert_scoreval_to_note(self, score_nutrition):
+        # todo: distinguer Eaux et Boissons des aliments solides .. ici, que aliments solides
+        # ici http://fr.openfoodfacts.org/score-nutritionnel-france
+        # A - Vert : jusqu'à -1
+        # B - Jaune : de 0 à 2
+        # C - Orange : de 3 à 10
+        # D - Rose : de 11 à 18
+        # E - Rouge : 19 et plus
+        if score_nutrition < 0:
+            return 5  # A
+        elif score_nutrition < 3:
+            return 4  # B
+        elif score_nutrition < 11:
+            return 3  # C
+        elif score_nutrition < 19:
+            return 2  # D
+        else:
+            return 1  # E
+
 
 class Gui:
     """
@@ -211,7 +307,12 @@ class Gui:
             props_to_show = self.data_env.prod_props_to_display
         print "LISTING of %d properties::" % len(props_to_show)
         for prop in props_to_show:
-            print 'prop. \'%s\' = %r' % (prop, a_product.dic_props[prop])
+            if prop in a_product.dic_props:
+                print 'prop. \'%s\' = %r' % (prop, a_product.dic_props[prop])
+
+        # additionally, show scores if available
+        print "score prox. = %r" % a_product.score_proximity
+        print "score nutri = %r" % a_product.score_nutrition
 
 
 class Product:
@@ -220,13 +321,22 @@ class Product:
         # while fetching similar products, always 1 at creation since there was a match on a category
         self.nb_categories_intersect_with_ref = 1
         # Proximity with product reference is computed later on
-        self.proximityWithProductRef = 0
+        self.score_proximity = 0
+        self.score_nutrition = 0
         self.dic_props = properties
-        self.prop_to_display = None
+        # exclude from graph if no comparison possible
+        self.excludeFromGraph = False
         # todo: remove print "creating product with properties = %r" % properties
 
     def get_id(self):
         return self.dic_props["_id"]
+
+    def set_as_reference(self, is_ref):
+        self.isRef = is_ref
+        if is_ref:
+            self.score_proximity = 1
+            # compute also the nutrition score
+            self.calc_score_nutrition()
 
     def incr_intersection_with_ref(self):
         """
@@ -236,23 +346,43 @@ class Product:
         """
         self.nb_categories_intersect_with_ref += 1
 
+    def compute_scores(self, product_ref):
+        self.calc_score_proximity(product_ref)
+        self.calc_score_nutrition()
+
     def calc_score_proximity(self, product_ref):
         """
         The bigger the intersection of categories between self and product_ref, the closer
-        Note: if intersection is 100%, then proximity is 0
+        Note: if intersection is 100%, then proximity is 100%
+        Proximity = nb_categ_intersect / nb_categ_prod_ref
         :rtype: None
-        :param product_ref:
-        :return:
-        """
+         :param product_ref:
+         :return:
+         """
         assert isinstance(product_ref, Product)
         nb_categs_ref = len(product_ref.dic_props["categories_tags"])
+        self.score_proximity = self.nb_categories_intersect_with_ref / nb_categs_ref
 
-    def calc_score_nutritionnel(selfself):
-        pass
-        # todo: à faire
+    def calc_score_nutrition(self):
+        """
+        see : http://fr.openfoodfacts.org/score-nutritionnel-france
+        :return:
+        """
+        nutriments = self.dic_props["nutriments"]
+        if not ("nutrition-score-uk" in nutriments):
+            # add security in case this is the product reference (we want it to be shown in the graph)
+            if self.isRef:
+                self.score_nutrition = 0
+                self.score_proximity = 0
+            else:
+                self.excludeFromGraph = True
+        else:
+            # initialize: Data Environment, Gui for display, and Querier
+            self.score_nutrition = int(nutriments["nutrition-score-uk"])
 
-# initialize: Data Environment, Gui for display, and Querier
-data_env1 = DataEnv(["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens"])
+
+data_env1 = DataEnv(
+    ["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens"])
 gui = Gui(data_env1)
 querier = Querier(data_env1, True)
 
@@ -285,7 +415,7 @@ while prod_code != "q":
         myProduct = products[0]
         assert isinstance(myProduct, Product)
         # Is the  product reference!
-        myProduct.isRef = True
+        myProduct.set_as_reference(True)
         gui.display(myProduct)
 
         # fetch similar products with the same categories
@@ -294,13 +424,18 @@ while prod_code != "q":
         products_match = querier.find_match(myProduct, props_to_match)
         print ".. NUMBER of matching distinct products found: %d" % len(products_match)
 
-        print ".. calculating proximity of all matching products with your product.."
-        for product in products_match:
-            product.calc_score_proximity(myProduct)
+        # for ij in range(0, 10):
+        #     print "%d" % ij
+        #     gui.display(products_match[ij])
+        # print "\t code: %r" % products_match[ij].dic_props["code"]
+        # print "\t\t proximity: %r" % products_match[ij].score_proximity
+        # print "\t\t nutriments %r" % products_match[ij].dic_props["nutriments"]["nutrition-score-uk"]
 
         # todo: plus tard
         statsProps = [
             "nutriments"]  # for all products, extracting of these specific items for building the statistical graphs
+        g = Graph(statsProps, myProduct, products_match, True)
+        g.show()
 
     print
     prod_code = raw_input("please enter a product code ['q'uit] > ")
