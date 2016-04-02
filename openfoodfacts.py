@@ -1,11 +1,16 @@
 # coding=utf-8
 # todo: go on line 158:
+# 1)
 # prendre produit 4000286221126 avec categories de:linsen et faire ce qui suit:
 # mettre à jour la base locale en prenant la dernière version de bson
 #  essayer avec le produit ci-dessus et vérifier que plusieurs categories comme ici
 #   http://fr.openfoodfacts.org/api/v0/produit/4000286221126.json
 #   http://world-fr.openfoodfacts.org/produit/4000286221126/rote-linsen-muller-s-muhle
 #
+# 2)
+# essayer avec produit 3256220450034 (boissons et beverages, plus de 10.000 références en tout!)
+#   categAliments et boissons à base de végétaux ==> 10.000 produits
+
 # print "prop. '%s' = %r" % (prop, a_product.dic_props[prop])
 # AttributeError: 'unicode' object has no attribute 'dic_props'
 
@@ -29,7 +34,6 @@ from pymongo import MongoClient
 # definition of objects
 
 
-# test de commentaire
 class DataEnv:
     """
     Environment for data. Specifies for instance the set of fields for matching
@@ -123,7 +127,7 @@ class Querier:
 
     def find_match(self, a_product, properties_to_match):
         """
-        Perform a find for each watched crtiterium in aProduct
+        Perform a find for each watched criterion in aProduct
         :param properties_to_match: property-set for finding matching products
         :param a_product:  product with watched criteria
         :return: list of unique products matching the watched criteria of the aProduct
@@ -143,6 +147,9 @@ class Querier:
                     _id_prod = prod.get_id()
                     if (_id_prod != _id_prod_ref) and not (_id_prod in tmp_matching_products):
                         tmp_matching_products[_id_prod] = prod
+                    else:
+                        assert isinstance(tmp_matching_products[_id_prod], Product)
+                        tmp_matching_products[_id_prod].incr_intersection_with_ref()
 
         # build a simple list from the temporary dictionary and return it
         matching_products = list(tmp_matching_products.values())
@@ -175,6 +182,13 @@ class Statistics:
 
         return None
 
+    def uniform_repartition(self):
+        """
+        Algorithm of " Uniformly Distributed Random Points Inside a Circle (2)" here:
+        http://narimanfarsad.blogspot.ch/2012/11/uniformly-distributed-points-inside.html
+        :return:
+        """
+        # todo: implement
 
 class Gui:
     """
@@ -202,6 +216,11 @@ class Gui:
 
 class Product:
     def __init__(self, properties):
+        self.isRef = False
+        # while fetching similar products, always 1 at creation since there was a match on a category
+        self.nb_categories_intersect_with_ref = 1
+        # Proximity with product reference is computed later on
+        self.proximityWithProductRef = 0
         self.dic_props = properties
         self.prop_to_display = None
         # todo: remove print "creating product with properties = %r" % properties
@@ -209,7 +228,15 @@ class Product:
     def get_id(self):
         return self.dic_props["_id"]
 
-    def calc_proximity(self, product_ref):
+    def incr_intersection_with_ref(self):
+        """
+        When a match on category is found with product reference, then we increment the number of intersected categories
+        in order to speed up a bit the proximity computation thereafter
+        :return:
+        """
+        self.nb_categories_intersect_with_ref += 1
+
+    def calc_score_proximity(self, product_ref):
         """
         The bigger the intersection of categories between self and product_ref, the closer
         Note: if intersection is 100%, then proximity is 0
@@ -218,10 +245,11 @@ class Product:
         :return:
         """
         assert isinstance(product_ref, Product)
-        nb_categs_self = len(self.dic_props["categories_tags"])
         nb_categs_ref = len(product_ref.dic_props["categories_tags"])
-        # todo: ratio à utiliser!
-        # todo: voir le cas où une seule catégorie (plus generalement où nb categs self = nb categs produitRéférent)
+
+    def calc_score_nutritionnel(selfself):
+        pass
+        # todo: à faire
 
 # initialize: Data Environment, Gui for display, and Querier
 data_env1 = DataEnv(["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens"])
@@ -256,6 +284,8 @@ while prod_code != "q":
         # .. myProduct = Product(data_products[0], ["countries", "categories"], ["nutriments", "allergens"])
         myProduct = products[0]
         assert isinstance(myProduct, Product)
+        # Is the  product reference!
+        myProduct.isRef = True
         gui.display(myProduct)
 
         # fetch similar products with the same categories
@@ -266,7 +296,7 @@ while prod_code != "q":
 
         print ".. calculating proximity of all matching products with your product.."
         for product in products_match:
-            product.calc_proximity(myProduct)
+            product.calc_score_proximity(myProduct)
 
         # todo: plus tard
         statsProps = [
