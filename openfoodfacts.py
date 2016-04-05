@@ -1,7 +1,8 @@
 # coding=utf-8
 # todo:
-# todo: ** brand dans les mini_product + url_product + url_img
-# todo: ** algorithme de répartition homogène des points: le tester sur pretit exemple, puis ici
+# todo: ** tracé de la grille + bandes de couleur
+# todo: ** carré dans la case appropriée pour le produit de référence
+# todo: ** porter sur web (voir exemple dans download de mpld3)
 
 # 1)
 # prendre produit 4000286221126 avec categories de:linsen et faire ce qui suit:
@@ -26,6 +27,32 @@ from __future__ import division
 from collections import Counter
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
+
+from numpy import pi
+import numpy
+
+
+# The algorithm below is strongly inspired from the one available here:
+# http://stackoverflow.com/questions/5408276/sampling-uniformly-distributed-random-points-inside-a-spherical-volume
+# This is here a repartition on a disk instead on a sphere (1 angle required and 2 coordinates)
+
+
+class PointRepartition:
+    def __init__(self, nb_particles):
+        self.number_of_particles = nb_particles
+
+    def new_positions_spherical_coordinates(self):
+        """
+        Sample of returns:
+        x = array([[-0.01886142], [-0.04094547], [-0.53896705]]) //
+        y = array([[-0.11048884], [-0.42567348], [ 0.557865  ]])
+        :return:
+        """
+        radius = numpy.random.uniform(0.0, 1.0, (self.number_of_particles, 1))
+        theta = numpy.random.uniform(-1., 1., (self.number_of_particles, 1)) * pi
+        x = radius * numpy.sin(theta)
+        y = radius * numpy.cos(theta)
+        return x, y
 
 
 # endpoint_root = "http://127.0.0.1:28017/off-fr/products/"
@@ -178,14 +205,17 @@ class Graph:
         self.verbose = verbose
         self.statsProps = stats_props
         self.product_ref = product_ref
-        self.xaxis_prod_ref = []
-        self.yaxis_prod_ref = []
+        self.xaxis_prod_ref_real = []
+        self.yaxis_prod_ref_real = []
+        self.xaxis_others_real = []
+        self.yaxis_others_real = []
         self.products_matching = products_others
+        # print "length is %d" % len(self.products_matching)
         # Graph uses its own data set which is a conversion of products_matching
         self.data_set_ref = []
         self.data_set_others = []
-        self.xaxis_others = []
-        self.yaxis_others = []
+        self.xaxis_others_distributed = []
+        self.yaxis_others_distributed = []
 
     def show(self):
         self.prepare_data()
@@ -208,13 +238,14 @@ class Graph:
                      "score_proximity": self.product_ref.score_proximity,
                      "score_nutrition": self.product_ref.score_nutrition,
                      "x_val_real": self.product_ref.score_proximity,
-                     "y_val_real": self.convert_scoreval_to_note(self.product_ref.score_nutrition),
-                     "x_val_graph": self.product_ref.score_proximity,
-                     "y_val_graph": self.convert_scoreval_to_note(self.product_ref.score_nutrition)
+                     "y_val_real": self.convert_scoreval_to_note(self.product_ref.score_nutrition)
+                     # ,
+                     # "x_val_graph": self.product_ref.score_proximity,
+                     # "y_val_graph": self.convert_scoreval_to_note(self.product_ref.score_nutrition)
                      }
         self.data_set_ref.append(mini_prod)
 
-        for product in products_match:
+        for product in self.products_matching:
             mini_prod = {"code": product.dic_props["code"], "generic_name": product.dic_props["generic_name"],
                          # todo
                          "brand": "",
@@ -225,46 +256,63 @@ class Graph:
             mini_prod["score_nutrition"] = product.score_nutrition
             mini_prod["x_val_real"] = product.score_proximity
             mini_prod["y_val_real"] = self.convert_scoreval_to_note(product.score_nutrition)
-            # todo: will be converted later on (below)
-            mini_prod["x_val_graph"] = mini_prod["x_val_real"]
-            mini_prod["y_val_graph"] = mini_prod["y_val_real"]
+            self.xaxis_others_real.append(mini_prod["x_val_real"])
+            self.yaxis_others_real.append(mini_prod["y_val_real"])
             self.data_set_others.append(mini_prod)
 
     def prepare_graph(self):
         """
         Prepare data before building the graph:
         - check units for extracted properties are the same. If not, perform a conversion
-        :return:
-        """
-        # prepare for product reference
-        self.xaxis_prod_ref.append(self.data_set_ref[0].pop("x_val_graph"))
-        self.yaxis_prod_ref.append(self.data_set_ref[0].pop("y_val_graph"))
-
-        # prepare for all other matching products
-        for mini_prod in self.data_set_others:
-            self.xaxis_others.append(mini_prod.pop("x_val_graph"))
-            self.yaxis_others.append(mini_prod.pop("y_val_graph"))
-
-        plt.plot(self.xaxis_prod_ref, self.yaxis_prod_ref, 'r-')
-        plt.scatter(self.xaxis_others, self.yaxis_others)
-
-        # verbosity details
-        if self.verbose:
-            print
-            print "Product ref. x / y: %r ∕ %r" % (self.xaxis_prod_ref, self.yaxis_prod_ref)
-            print "Matching products with COUNTER:"
-            print "\t Counter(x): %r" % Counter(self.xaxis_others)
-            print "\t Counter(y): %r" % Counter(self.yaxis_others)
-
-    @staticmethod
-    def uniform_repartition():
-        """
         Algorithm of " Uniformly Distributed Random Points Inside a Circle (2)" here:
         http://narimanfarsad.blogspot.ch/2012/11/uniformly-distributed-points-inside.html
         :return:
         """
-        pass
-        # todo: implement
+        # prepare for product reference
+        self.xaxis_prod_ref_real.append(self.data_set_ref[0].pop("x_val_real"))
+        self.yaxis_prod_ref_real.append(self.data_set_ref[0].pop("y_val_real"))
+
+        # prepare for all other matching products
+        # .. using a uniform repartition
+        # todo: à refaire ci-dessous par cercle et non pas tous les cercles en 1 fois(!)
+        # print "length for repartition points = %d" % len(self.data_set_others)
+        sample = PointRepartition(len(self.data_set_others))
+        x, y = sample.new_positions_spherical_coordinates()
+        # print "x = %r // y = %r" % (x, y)
+        v_x = []
+        v_y = []
+        for x0, y0 in zip(x, y):
+            # print "%r // %r " % (x0[0], y0[0])
+            v_x.append(x0[0])
+            v_y.append(y0[0])
+
+        for mini_prod, x0, y0 in zip(self.data_set_others, v_x, v_y):
+            x, y = mini_prod["x_val_real"], mini_prod["y_val_real"]
+            # print "miniprod = %d, %d" % (x, y)
+            x_dspl = x - (
+                1 / (2 * len(self.product_ref.dic_props["categories_tags"])) * (1 - x0))
+            y_dspl = y - (
+                0.5 * (1 - y0))
+            # print "computed for display = %d, %d" % (x_dspl, y_dspl)
+            # if x_dspl < 0:
+            #     print "NEGATIF Sire!"
+            self.xaxis_others_distributed.append(x_dspl)
+            self.yaxis_others_distributed.append(y_dspl)
+            # self.xaxis_others.append(mini_prod.pop("x_val_graph") + x0)
+            # self.yaxis_others.append(mini_prod.pop("y_val_graph") + y0)
+
+        fig, ax = plt.subplots(subplot_kw=dict(axisbg='#BBBBBB'))
+        ax.grid(color='white', linestyle='solid')
+        plt.plot(self.xaxis_prod_ref_real, self.yaxis_prod_ref_real, 'r-')
+        plt.scatter(self.xaxis_others_distributed, self.yaxis_others_distributed)
+
+        # verbosity details
+        if self.verbose:
+            print
+            print "Product ref. x / y: %r ∕ %r" % (self.xaxis_prod_ref_real, self.yaxis_prod_ref_real)
+            print "Matching products with COUNTER:"
+            print "\t Counter(x): %r" % Counter(self.xaxis_others_real)
+            print "\t Counter(y): %r" % Counter(self.yaxis_others_real)
 
     def convert_scoreval_to_note(self, score_nutrition):
         # todo: distinguer Eaux et Boissons des aliments solides .. ici, que aliments solides
@@ -326,7 +374,6 @@ class Product:
         self.dic_props = properties
         # exclude from graph if no comparison possible
         self.excludeFromGraph = False
-        # todo: remove print "creating product with properties = %r" % properties
 
     def get_id(self):
         return self.dic_props["_id"]
