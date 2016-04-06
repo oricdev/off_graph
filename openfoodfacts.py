@@ -27,6 +27,8 @@ from __future__ import division
 from collections import Counter
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
+import matplotlib.colors
+import mpld3
 
 from numpy import pi
 import numpy
@@ -69,8 +71,8 @@ class PointRepartition:
 
 class DataEnv:
     """
-    Environment for data. Specifies for instance the set of fields for matching
-    products to retrieve from the server (Querier)
+    Environment for data. Specifies the set of fields retrieved from server for matching
+    products (Querier)
     """
 
     def __init__(self, set_of_properties):
@@ -108,6 +110,7 @@ class Querier:
         Connection to the OFF-Product database
         :return:
         """
+        # todo: review since hard-coded!
         if self.verbose:
             print '.. connecting to server MongoClient ("127.0.0.1", 27017)'
         self.pongo = MongoClient("127.0.0.1", 27017)
@@ -143,13 +146,14 @@ class Querier:
         fields_projection = {}
         for a_prop in self.data_env.prod_props_to_display:
             fields_projection[a_prop] = 1
-        # id, code and categories always retrieved
+        # id, code and categories always retrieved (used as filter criteria = projection)
         fields_projection["_id"] = 1
         fields_projection["code"] = 1
         fields_projection["categories_tags"] = 1
-        # todo: remove print "projection on %r" % fields_projection
+
         if self.verbose:
             print ".. fetching product details with { %s: %r } .." % (prop, val)
+
         products_json = self.coll_products.find({
             prop: val
         }, fields_projection)
@@ -205,13 +209,19 @@ class Graph:
         self.verbose = verbose
         self.statsProps = stats_props
         self.product_ref = product_ref
+        # x, y coordinates on the graph and label to display for the product reference
         self.xaxis_prod_ref_real = []
         self.yaxis_prod_ref_real = []
+        self.label_prod_ref = []
+
+        self.products_matching = products_others
+        # x, y coordinates on the graph and label to display for all matching products
         self.xaxis_others_real = []
         self.yaxis_others_real = []
-        self.products_matching = products_others
+        self.labels_others = []
+
         # print "length is %d" % len(self.products_matching)
-        # Graph uses its own data set which is a conversion of products_matching
+        # Graph uses its own data set which is a conversion of products_matching: preparation of these datasets
         self.data_set_ref = []
         self.data_set_others = []
         self.xaxis_others_distributed = []
@@ -221,10 +231,9 @@ class Graph:
         self.prepare_data()
         self.prepare_graph()
 
-        plt.show()
+        # plt.show()
 
     def prepare_data(self):
-        # todo:
         if self.verbose:
             print ".. preparing the data for the show"
 
@@ -232,7 +241,7 @@ class Graph:
         mini_prod = {"code": self.product_ref.dic_props["code"],
                      "generic_name": self.product_ref.dic_props["generic_name"],
                      # todo
-                     "brand": "",
+                     "brands_tags": self.product_ref.dic_props["brands_tags"],
                      "url_product": "",
                      "url_img": "",
                      "score_proximity": self.product_ref.score_proximity,
@@ -245,10 +254,11 @@ class Graph:
                      }
         self.data_set_ref.append(mini_prod)
 
+        # preparing data for all other matching products
         for product in self.products_matching:
             mini_prod = {"code": product.dic_props["code"], "generic_name": product.dic_props["generic_name"],
                          # todo
-                         "brand": "",
+                         "brands_tags": product.dic_props["brands_tags"],
                          "url_product": "",
                          "url_img": ""}
             product.compute_scores(self.product_ref)
@@ -268,14 +278,16 @@ class Graph:
         http://narimanfarsad.blogspot.ch/2012/11/uniformly-distributed-points-inside.html
         :return:
         """
+        # todo: ugly code: to be deeply reviewed
         # prepare for product reference
-        self.xaxis_prod_ref_real.append(self.data_set_ref[0].pop("x_val_real"))
-        self.yaxis_prod_ref_real.append(self.data_set_ref[0].pop("y_val_real"))
+        nb_categs_ref = len(self.product_ref.dic_props["categories_tags"])
+        self.xaxis_prod_ref_real.append(nb_categs_ref * self.data_set_ref[0]["x_val_real"])
+        self.yaxis_prod_ref_real.append(self.data_set_ref[0]["y_val_real"])
+        label_prod_ref = self.data_set_ref[0]["code"]
+        self.label_prod_ref.append(label_prod_ref)
 
         # prepare for all other matching products
         # .. using a uniform repartition
-        # todo: à refaire ci-dessous par cercle et non pas tous les cercles en 1 fois(!)
-        # print "length for repartition points = %d" % len(self.data_set_others)
         sample = PointRepartition(len(self.data_set_others))
         x, y = sample.new_positions_spherical_coordinates()
         # print "x = %r // y = %r" % (x, y)
@@ -289,22 +301,82 @@ class Graph:
         for mini_prod, x0, y0 in zip(self.data_set_others, v_x, v_y):
             x, y = mini_prod["x_val_real"], mini_prod["y_val_real"]
             # print "miniprod = %d, %d" % (x, y)
-            x_dspl = x - (
-                1 / (2 * len(self.product_ref.dic_props["categories_tags"])) * (1 - x0))
-            y_dspl = y - (
+            # NOTE: since we display 2 graphs (1 for all points, and 1 for the coloured stripes with a specific design
+            #  for the CELL matching the product reference, we need to extend the x Values (mult. by nb categs
+            #  of product reference)
+            x_coord = nb_categs_ref * (x - (
+                1 / (2 * nb_categs_ref) * (1 - x0)))
+            y_coord = y - (
                 0.5 * (1 - y0))
             # print "computed for display = %d, %d" % (x_dspl, y_dspl)
-            # if x_dspl < 0:
-            #     print "NEGATIF Sire!"
-            self.xaxis_others_distributed.append(x_dspl)
-            self.yaxis_others_distributed.append(y_dspl)
+
+            self.xaxis_others_distributed.append(x_coord)
+            self.yaxis_others_distributed.append(y_coord)
+            the_label = "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/" \
+                        + mini_prod["code"] + "'>" \
+                        + mini_prod["code"] + " / " + " // ".join(mini_prod["brands_tags"]) + " / " \
+                        + mini_prod["generic_name"] + "</a></div>"
+            self.labels_others.append(the_label)
             # self.xaxis_others.append(mini_prod.pop("x_val_graph") + x0)
             # self.yaxis_others.append(mini_prod.pop("y_val_graph") + y0)
 
-        fig, ax = plt.subplots(subplot_kw=dict(axisbg='#BBBBBB'))
-        ax.grid(color='white', linestyle='solid')
-        plt.plot(self.xaxis_prod_ref_real, self.yaxis_prod_ref_real, 'r-')
-        plt.scatter(self.xaxis_others_distributed, self.yaxis_others_distributed)
+        # fig, ax1 = plt.subplots(nrows=1, ncols=7, subplot_kw=dict(axisbg='#ee0000'))
+        # fig, axes = plt.p.subplots(nrows=5, ncols=7)
+        # axes[0].set_color(color='#ee0000')
+        # axes[1].set_color(color='#00dd00')
+        # fig, ax = plt.subplot2grid((3, 3), (0, 0), colspan=7)
+        # ax.grid(color='white', linestyle='solid')
+
+        N = 5  # nb of rows
+        # make an empty data set
+        data = numpy.ones((N, nb_categs_ref)) * numpy.nan
+
+        # data[0:1, 0] = 5
+        # data[0:1, 1] = 4
+        # data[0:1, 2] = 3
+        # data[0:1, 3] = 2
+        # data[0:1, 4] = 1
+
+        data[0, ] = 1
+        data[1, ] = 2
+        data[2, ] = 3
+        data[3, ] = 4
+        data[4, ] = 5
+        # Set background color for the product reference
+        print self.yaxis_prod_ref_real
+        data[self.yaxis_prod_ref_real[0] - 1, nb_categs_ref - 1] = numpy.nan
+
+        # make a figure + axes
+        fig, ax = plt.subplots(1, 1, tight_layout=True)
+        # make nutrition score coloured stripes
+        # todo: alpha 0.3 required, except for the cell matching the product reference (alpha = 1)
+        my_cmap = matplotlib.colors.ListedColormap(['#ff0000', '#ff0180', '#ff6701', '#ffff00', '#00ff00'])
+        # set the 'bad' values (nan) to be white and transparent
+        my_cmap.set_bad(alpha=0)
+        # draw the grid
+        # for x in range(0, 1):
+        #     ax.axhline(x, lw=2, color='k', zorder=5, alpha=0.2)
+        #     ax.axvline(x, lw=2, color='k', zorder=5, alpha=0.2)
+
+        ax.set_title("Nutrition scores for products similar to your selected product ["+self.label_prod_ref[0]+"]",
+                     size=12)
+        ax.set_alpha(0.2)
+        # draw the boxes
+        ax.imshow(data, interpolation='none', cmap=my_cmap, extent=[0, nb_categs_ref, 0, N], zorder=0)
+        # ax.imshow(data, interpolation='none', cmap=my_cmap, zorder=0)
+
+        plt.xticks(numpy.arange(0, nb_categs_ref + 0.1, 1),
+                   ('low match',) + tuple('' for _ in range(1, nb_categs_ref)) + ('full match',))
+        plt.yticks(numpy.arange(0, 6, 1.0), ('', 'E', 'D', 'C', 'B', 'A'))
+        scatter_ref = plt.scatter(self.xaxis_prod_ref_real, self.yaxis_prod_ref_real, color='#000000')
+        scatter_others = plt.scatter(self.xaxis_others_distributed, self.yaxis_others_distributed)
+        tooltip = mpld3.plugins.PointHTMLTooltip(scatter_others, labels=self.labels_others)
+        mpld3.plugins.connect(fig, tooltip)
+        mpld3.save_html(fig, "/home/olivier/prod_" + str(self.label_prod_ref[0]) + ".html")
+        # todo: issue with ticks in mpld3 (not available yet):
+        # cf. http://stackoverflow.com/questions/35446525/setting-tick-labels-in-mpld3
+        mpld3.show()
+        # plt.show()
 
         # verbosity details
         if self.verbose:
@@ -365,14 +437,19 @@ class Gui:
 
 class Product:
     def __init__(self, properties):
+        # product reference (no by default)
         self.isRef = False
+        # Nb of categories' intersections with reference product:
         # while fetching similar products, always 1 at creation since there was a match on a category
         self.nb_categories_intersect_with_ref = 1
         # Proximity with product reference is computed later on
-        self.score_proximity = 0
-        self.score_nutrition = 0
+        self.score_proximity = 0    # X-axis
+        self.score_nutrition = 0    # Y-axis
         self.dic_props = properties
-        # exclude from graph if no comparison possible
+        # exclude from graph if no comparison possible.
+        # We can add exclusion criteria such as:
+        #  * generic-name is empty
+        #  * too far in similarity with reference product (nb categories intersections too low)
         self.excludeFromGraph = False
 
     def get_id(self):
@@ -424,12 +501,17 @@ class Product:
             else:
                 self.excludeFromGraph = True
         else:
+            # todo: to be reviewed for waters, countries, etc., as explained in the above url
             # initialize: Data Environment, Gui for display, and Querier
             self.score_nutrition = int(nutriments["nutrition-score-uk"])
 
 
+# ##########################
+# ENTRY POINT FOR THE CODE #
+# ##########################
+
 data_env1 = DataEnv(
-    ["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens"])
+    ["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens", "brands_tags"])
 gui = Gui(data_env1)
 querier = Querier(data_env1, True)
 
