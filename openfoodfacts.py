@@ -1,28 +1,4 @@
 # coding=utf-8
-# todo:
-# todo: ** tracé de la grille + bandes de couleur
-# todo: ** carré dans la case appropriée pour le produit de référence
-# todo: ** porter sur web (voir exemple dans download de mpld3)
-
-# 1)
-# prendre produit 4000286221126 avec categories de:linsen et faire ce qui suit:
-# mettre à jour la base locale en prenant la dernière version de bson
-#  essayer avec le produit ci-dessus et vérifier que plusieurs categories comme ici
-#   http://fr.openfoodfacts.org/api/v0/produit/4000286221126.json
-#   http://world-fr.openfoodfacts.org/produit/4000286221126/rote-linsen-muller-s-muhle
-#
-# 2)
-# essayer avec produit 3256220450034 (boissons et beverages, plus de 10.000 références en tout!)
-#   categAliments et boissons à base de végétaux ==> 10.000 produits
-
-# print "prop. '%s' = %r" % (prop, a_product.dic_props[prop])
-# AttributeError: 'unicode' object has no attribute 'dic_props'
-
-
-# coding=utf-8
-# RESOURCES TO PYMONGO API:
-# please consult https://api.mongodb.org/python/current/tutorial.html
-# import json
 from __future__ import division
 from collections import Counter
 from pymongo import MongoClient
@@ -32,13 +8,11 @@ import mpld3
 
 from numpy import pi
 import numpy
-
+from os.path import expanduser
 
 # The algorithm below is strongly inspired from the one available here:
 # http://stackoverflow.com/questions/5408276/sampling-uniformly-distributed-random-points-inside-a-spherical-volume
 # This is here a repartition on a disk instead on a sphere (1 angle required and 2 coordinates)
-
-
 class PointRepartition:
     def __init__(self, nb_particles):
         self.number_of_particles = nb_particles
@@ -55,18 +29,6 @@ class PointRepartition:
         x = radius * numpy.sin(theta)
         y = radius * numpy.cos(theta)
         return x, y
-
-
-# endpoint_root = "http://127.0.0.1:28017/off-fr/products/"
-# endpoint = "http://127.0.0.1:28017/off-fr/products/?filter_categories=Hot Sauces"
-# repos = json.loads(requests.get(endpoint).text)
-#
-# print "%r" % repos
-# print "%r" % repos['rows']
-# print "%r" % len(repos['rows'])
-
-# definition of objects
-# from sympy.galgebra.ncutil import product_derivation
 
 
 class DataEnv:
@@ -273,7 +235,7 @@ class Graph:
     def prepare_graph(self):
         """
         Prepare data before building the graph:
-        - check units for extracted properties are the same. If not, perform a conversion
+        - check that units for extracted properties are the same. If not, perform a conversion
         Algorithm of " Uniformly Distributed Random Points Inside a Circle (2)" here:
         http://narimanfarsad.blogspot.ch/2012/11/uniformly-distributed-points-inside.html
         :return:
@@ -317,19 +279,10 @@ class Graph:
                         + mini_prod["code"] + " / " + " // ".join(mini_prod["brands_tags"]) + " / " \
                         + mini_prod["generic_name"] + "</a></div>"
             self.labels_others.append(the_label)
-            # self.xaxis_others.append(mini_prod.pop("x_val_graph") + x0)
-            # self.yaxis_others.append(mini_prod.pop("y_val_graph") + y0)
 
-        # fig, ax1 = plt.subplots(nrows=1, ncols=7, subplot_kw=dict(axisbg='#ee0000'))
-        # fig, axes = plt.p.subplots(nrows=5, ncols=7)
-        # axes[0].set_color(color='#ee0000')
-        # axes[1].set_color(color='#00dd00')
-        # fig, ax = plt.subplot2grid((3, 3), (0, 0), colspan=7)
-        # ax.grid(color='white', linestyle='solid')
-
-        N = 5  # nb of rows
+        nb_rows = 5  # nb of rows
         # make an empty data set
-        data = numpy.ones((N, nb_categs_ref)) * numpy.nan
+        data = numpy.ones((nb_rows, nb_categs_ref)) * numpy.nan
 
         # data[0:1, 0] = 5
         # data[0:1, 1] = 4
@@ -337,13 +290,14 @@ class Graph:
         # data[0:1, 3] = 2
         # data[0:1, 4] = 1
 
+        # Associate values to nutrition scores A to E (on the whole row)
         data[0, ] = 1
         data[1, ] = 2
         data[2, ] = 3
         data[3, ] = 4
         data[4, ] = 5
         # Set background color for the product reference
-        print self.yaxis_prod_ref_real
+        # print self.yaxis_prod_ref_real
         data[self.yaxis_prod_ref_real[0] - 1, nb_categs_ref - 1] = numpy.nan
 
         # make a figure + axes
@@ -362,7 +316,7 @@ class Graph:
                      size=12)
         ax.set_alpha(0.2)
         # draw the boxes
-        ax.imshow(data, interpolation='none', cmap=my_cmap, extent=[0, nb_categs_ref, 0, N], zorder=0)
+        ax.imshow(data, interpolation='none', cmap=my_cmap, extent=[0, nb_categs_ref, 0, nb_rows], zorder=0)
         # ax.imshow(data, interpolation='none', cmap=my_cmap, zorder=0)
 
         plt.xticks(numpy.arange(0, nb_categs_ref + 0.1, 1),
@@ -372,11 +326,16 @@ class Graph:
         scatter_others = plt.scatter(self.xaxis_others_distributed, self.yaxis_others_distributed)
         tooltip = mpld3.plugins.PointHTMLTooltip(scatter_others, labels=self.labels_others)
         mpld3.plugins.connect(fig, tooltip)
-        mpld3.save_html(fig, "/home/olivier/prod_" + str(self.label_prod_ref[0]) + ".html")
+        home = expanduser("~")
+        mpld3.save_html(fig, home+"/prod_" + str(self.label_prod_ref[0]) + ".html")
         # todo: issue with ticks in mpld3 (not available yet):
         # cf. http://stackoverflow.com/questions/35446525/setting-tick-labels-in-mpld3
+
+        # !! Activate either mpld3.show or plt.show !!
         mpld3.show()
-        # plt.show()
+        # todo: attention -> behaviour is a bit different to mpld3 and currently wrong:
+        # todo: .. the white square is currently shown mirrored in comparison with mpld3, which is wrong
+        plt.show()
 
         # verbosity details
         if self.verbose:
@@ -431,8 +390,8 @@ class Gui:
                 print 'prop. \'%s\' = %r' % (prop, a_product.dic_props[prop])
 
         # additionally, show scores if available
-        print "score prox. = %r" % a_product.score_proximity
-        print "score nutri = %r" % a_product.score_nutrition
+        print "score proximity with ref. product = %r" % a_product.score_proximity
+        print "score nutritional = %r" % a_product.score_nutrition
 
 
 class Product:
