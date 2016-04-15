@@ -59,7 +59,7 @@ Once the OFF database is decompacted (see "Requirements" above), perform the fol
     -   127.0.0.1 - - [15/Apr/2016 19:38:33] "GET /mpld3.js HTTP/1.1" 200 -
     - 127.0.0.1 - - [15/Apr/2016 19:38:34] code 404, message Not Found
     - 127.0.0.1 - - [15/Apr/2016 19:38:34] "GET /favicon.ico HTTP/1.1" 404 -
-- the black point along with the white square refers to the reference product (similarity of 100% and its nutrition score). All other points are the fetched more-or-less similar products. Within a square, these products are displayed according to a specific algorithm for the repartition of points in a disk-surface (this has been my own decision and is arbitrary)
+- the black point along with the white square refers to the reference product (similarity of 100% and its nutrition score). All other points are the fetched more-or-less similar products. Within a square, these products are displayed according to a specific algorithm for the repartition of points in a disk-surface (this has been my own decision and is arbitrary) [file <i>point_repartition.py</i>] 
 - Plot your mouse on any point to see some details of the matching product
 
 <h1>Current bugs</h1>
