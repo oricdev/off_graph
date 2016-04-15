@@ -70,6 +70,8 @@ Once the OFF database is decompacted (see "Requirements" above), perform the fol
 - performance has to be improved in many ways:
     - the lower the similarity, the less points we need to retrieve (boundary instead of all products)
     - adding filtering criteria (country, ...)
+    - creation of index for <i>categories_tags</i> (?)
+    - use <i>categories_hierarchy</i> instead for optimization (?) + index
 - display points on a web page with labels, urls, and images in ajax-mode (see <i>http://world.openfoodfacts.org/cgi/search.pl?action=process&tagtype_0=categories&tag_contains_0=contains&tag_0=Breakfast%20cereals&sort_by=unique_scans_n&page_size=20&axis_x=sugars&axis_y=fat&series_nutrition_grades=on&graph=1</i>). We may take the same libraries instead of <i>mpld3</i>
 - nutrition scores are France-based and may be different in other countries
 - nutrition scores should differentiate between waters and beverages (see <i>http://fr.openfoodfacts.org/score-nutritionnel-france</i>)
