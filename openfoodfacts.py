@@ -10,6 +10,7 @@ from numpy import pi
 import numpy
 from os.path import expanduser
 
+
 # The algorithm below is strongly inspired from the one available here:
 # http://stackoverflow.com/questions/5408276/sampling-uniformly-distributed-random-points-inside-a-spherical-volume
 # This is here a repartition on a disk instead on a sphere (1 angle required and 2 coordinates)
@@ -277,7 +278,9 @@ class Graph:
             the_label = "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/" \
                         + mini_prod["code"] + "'>" \
                         + mini_prod["code"] + " / " + " // ".join(mini_prod["brands_tags"]) + " / " \
-                        + mini_prod["generic_name"] + "</a></div>"
+                        + mini_prod["generic_name"] + "<br/>" \
+                        + "<img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' />" \
+                        + "</a><br/></div>"
             self.labels_others.append(the_label)
 
         nb_rows = 5  # nb of rows
@@ -291,11 +294,11 @@ class Graph:
         # data[0:1, 4] = 1
 
         # Associate values to nutrition scores A to E (on the whole row)
-        data[0, ] = 1
-        data[1, ] = 2
-        data[2, ] = 3
-        data[3, ] = 4
-        data[4, ] = 5
+        data[0,] = 1
+        data[1,] = 2
+        data[2,] = 3
+        data[3,] = 4
+        data[4,] = 5
         # Set background color for the product reference
         # print self.yaxis_prod_ref_real
         data[self.yaxis_prod_ref_real[0] - 1, nb_categs_ref - 1] = numpy.nan
@@ -312,7 +315,7 @@ class Graph:
         #     ax.axhline(x, lw=2, color='k', zorder=5, alpha=0.2)
         #     ax.axvline(x, lw=2, color='k', zorder=5, alpha=0.2)
 
-        ax.set_title("Nutrition scores for products similar to your selected product ["+self.label_prod_ref[0]+"]",
+        ax.set_title("Nutrition scores for products similar to your selected product [" + self.label_prod_ref[0] + "]",
                      size=12)
         ax.set_alpha(0.2)
         # draw the boxes
@@ -322,12 +325,13 @@ class Graph:
         plt.xticks(numpy.arange(0, nb_categs_ref + 0.1, 1),
                    ('low match',) + tuple('' for _ in range(1, nb_categs_ref)) + ('full match',))
         plt.yticks(numpy.arange(0, 6, 1.0), ('', 'E', 'D', 'C', 'B', 'A'))
-        scatter_ref = plt.scatter(self.xaxis_prod_ref_real, self.yaxis_prod_ref_real, color='#000000')
+        # todo: remove spot current product .. scatter_ref = plt.scatter(self.xaxis_prod_ref_real,
+        # todo: self.yaxis_prod_ref_real, color='#000000')
         scatter_others = plt.scatter(self.xaxis_others_distributed, self.yaxis_others_distributed)
         tooltip = mpld3.plugins.PointHTMLTooltip(scatter_others, labels=self.labels_others)
         mpld3.plugins.connect(fig, tooltip)
         home = expanduser("~")
-        mpld3.save_html(fig, home+"/prod_" + str(self.label_prod_ref[0]) + ".html")
+        mpld3.save_html(fig, home + "/prod_" + str(self.label_prod_ref[0]) + ".html")
         # todo: issue with ticks in mpld3 (not available yet):
         # cf. http://stackoverflow.com/questions/35446525/setting-tick-labels-in-mpld3
 
@@ -402,8 +406,8 @@ class Product:
         # while fetching similar products, always 1 at creation since there was a match on a category
         self.nb_categories_intersect_with_ref = 1
         # Proximity with product reference is computed later on
-        self.score_proximity = 0    # X-axis
-        self.score_nutrition = 0    # Y-axis
+        self.score_proximity = 0  # X-axis
+        self.score_nutrition = 0  # Y-axis
         self.dic_props = properties
         # exclude from graph if no comparison possible.
         # We can add exclusion criteria such as:
