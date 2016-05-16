@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <style> /* set the CSS */
+
+    body { font: 8px Arial;}
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 60px;
+        height: 120px;
+        padding: 2px;
+        font: 8px sans-serif;
+        background: lightsteelblue;
+        border: 0px;
+        border-radius: 8px;
+        pointer-events: none;
+    }
+
+    </style>
+</head>
+<body>
+<!-- load the d3.js library -->
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<script>
+
+    // Set the dimensions of the canvas / graph
+    var margin = {top: 30, right: 20, bottom: 30, left: 50},
+            width = 1000 - margin.left - margin.right,
+            height = 600 - margin.top - margin.bottom;
+
+//    alert(height);
+//    alert(width);
+//    // Parse the date / time
+//    var parseDate = d3.time.format("%d-%b-%y").parse;
+//    var formatTime = d3.time.format("%e %B");
+
+    // Set the ranges
+//    var x = d3.time.scale().range([0, width]);
+//    var y = d3.scale.linear().range([height, 0]);
+
+    var x = d3.scale.linear().range([0, width]);
+    var y = d3.scale.linear().range([height, 0]);
+
+    var nb_categs = 7;
+    // Define the axes
+    var xAxis = d3.svg.axis().scale(x)
+            .orient("bottom").ticks(nb_categs)
+            .tickFormat(function (d) {
+                return d*100 + "%";
+            });
+
+    var yAxis = d3.svg.axis().scale(y)
+            .orient("left")
+            .ticks(5)
+            .tickFormat(function (d) {
+                if (d == 1)
+                    return "A";
+                if (d == 2)
+                    return "B";
+                if (d == 3)
+                    return "C";
+                if (d == 4)
+                    return "D";
+                if (d==5)
+                    return "E";
+                return "";
+            });
+
+    // Define the div for the tooltip
+    var div = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+    // Adds the svg canvas
+    var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform",
+                    "translate(" + margin.left + "," + margin.top + ")");
+
+    // Get the data
+    //    d3.csv("data.csv", function(error, data) {
+    //        data.forEach(function(d) {
+    //            d.date = parseDate(d.date);
+    //            d.close = +d.close;
+    //        });
+    //
+
+    // taken from my Python project as d3_json object
+//    var data = [{'y': 2.7771622768200097, 'x': 0.80766060317357491, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4000412045244'>4000412045244 / original-grafschafter / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.59704344077170624, 'x': 0.1940551104474314, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710404360'>3596710404360 / auchan / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.6499334885035903, 'x': 0.75604056058710722, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710427734'>3596710427734 / auchan / P\xe2te \xe0 tartiner aux noisettes et au cacao maigre<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 4.2199308057519334, 'x': 0.88428646276646905, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3560070519309'>3560070519309 / carrefour / Muesli floconneux 5 c\xe9r\xe9ales nature Bio<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.75441786122128951, 'x': 2.5652856023047219, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3470201011278'>3470201011278 / pur-bonheur // confiserie-pinson / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.8530339744014146, 'x': 0.31687708054467156, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8437015940137'>8437015940137 / carlota-organic // carlota / Pat\xe9 de champi\xf1\xf3n y tofu ecol\xf3gico<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.81345787219295551, 'x': 1.7299407903172954, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4008400401621'>4008400401621 / nutella // ferrero / Nuss-Nugat-Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.41384558770871049, 'x': 2.5288651265792179, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4300175163798'>4300175163798 / k-classic / Nuss-Nougat-Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.4643525510065794, 'x': 0.28515289286360374, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/20089566'>20089566 / nulacta / Nuss Nougat Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.31233205800547925, 'x': 1.2565068561585786, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3017620401473'>3017620401473 / ferrero // nutella / Nutella<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 2.2906743552499274, 'x': 0.74182502566334907, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3250390729341'>3250390729341 / chabrior / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.4800832855543733, 'x': 1.5598265373558347, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/27029077'>27029077 / delinut / P\xe2te \xe0 tartiner<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.1979891053971263, 'x': 3.3301428866890834, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3017620429262'>3017620429262 / ferrero // nutella / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 4.3029253469206692, 'x': 0.7882394085805281, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3256221407242'>3256221407242 / u / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.484812485272734, 'x': 0.52068678354946629, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/0637793002500'>0637793002500 / mackdays / Marmelade d'orange de Dundee<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.3362180716771492, 'x': 0.49823182762433954, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/32760217400341'>32760217400341 / sandrine / confiture de rhubarbe<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.29121700360382319, 'x': 1.7078890544685132, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8000500082379'>8000500082379 / nutella // ferrero / P\xe2tes \xe0 tartiner aux noisettes et au cacao<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.0114564438501761, 'x': 0.53205636137014867, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3560070519033'>3560070519033 / carrefour / Muesli raisins noisettes Bio<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.7866941718162392, 'x': 0.093057722018309363, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8437015940120'>8437015940120 / carlota-organic / Pat\xe9 de Pimiento y Tofu ecol\xf3gico<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.26927744499239714, 'x': 0.65353765218845317, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/40349558'>40349558 / meggle / S\xfc\xdfrahmbutter 82% Fett<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 2.5000761808106331, 'x': 0.49543179800143994, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3256222633572'>3256222633572 / u / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.0263415640721121, 'x': 2.4862128818934481, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/0081185005707'>0081185005707 / nocciolata / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}];
+//    var data = [
+//        {'y': 2.77, 'x': 0.80, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4000412045244'>4000412045244 / original-grafschafter / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"},
+//        {'y': 0.59, 'x': 0.19, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710404360'>3596710404360 / auchan / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"},
+//        {'y': 1.64, 'x': 0.75, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710427734'>3596710427734 / auchan / P\xe2te \xe0 tartiner aux noisettes et au cacao maigre<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"},
+//        {'y': 4.214, 'x': 0.88, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3560070519309'>3560070519309 / carrefour / Muesli floconneux 5 c\xe9r\xe9ales nature Bio<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"},
+//        {'y': 0.75, 'x': 2.56, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3470201011278'>3470201011278 / pur-bonheur // confiserie-pinson / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"},
+//        {'y': 3.853, 'x': 0.31, 'content':  "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8437015940137'>8437015940137 / carlota-organic // carlota / Pat\xe9 de champi\xf1\xf3n y tofu ecol\xf3gico<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}
+//        ];
+
+    var data = [{'y': 2.7771622768200097, 'x': 0.80766060317357491, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4000412045244'>4000412045244 / original-grafschafter / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.59704344077170624, 'x': 0.1940551104474314, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710404360'>3596710404360 / auchan / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.6499334885035903, 'x': 0.75604056058710722, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3596710427734'>3596710427734 / auchan / P\xe2te \xe0 tartiner aux noisettes et au cacao maigre<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 4.2199308057519334, 'x': 0.88428646276646905, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3560070519309'>3560070519309 / carrefour / Muesli floconneux 5 c\xe9r\xe9ales nature Bio<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.75441786122128951, 'x': 2.5652856023047219, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3470201011278'>3470201011278 / pur-bonheur // confiserie-pinson / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.8530339744014146, 'x': 0.31687708054467156, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8437015940137'>8437015940137 / carlota-organic // carlota / Pat\xe9 de champi\xf1\xf3n y tofu ecol\xf3gico<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.81345787219295551, 'x': 1.7299407903172954, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4008400401621'>4008400401621 / nutella // ferrero / Nuss-Nugat-Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.41384558770871049, 'x': 2.5288651265792179, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/4300175163798'>4300175163798 / k-classic / Nuss-Nougat-Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.4643525510065794, 'x': 0.28515289286360374, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/20089566'>20089566 / nulacta / Nuss Nougat Creme<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.31233205800547925, 'x': 1.2565068561585786, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3017620401473'>3017620401473 / ferrero // nutella / Nutella<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 2.2906743552499274, 'x': 0.74182502566334907, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3250390729341'>3250390729341 / chabrior / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.4800832855543733, 'x': 1.5598265373558347, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/27029077'>27029077 / delinut / P\xe2te \xe0 tartiner<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.1979891053971263, 'x': 3.3301428866890834, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3017620429262'>3017620429262 / ferrero // nutella / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 4.3029253469206692, 'x': 0.7882394085805281, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3256221407242'>3256221407242 / u / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 1.484812485272734, 'x': 0.52068678354946629, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/0637793002500'>0637793002500 / mackdays / Marmelade d'orange de Dundee<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.3362180716771492, 'x': 0.49823182762433954, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/32760217400341'>32760217400341 / sandrine / confiture de rhubarbe<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.29121700360382319, 'x': 1.7078890544685132, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8000500082379'>8000500082379 / nutella // ferrero / P\xe2tes \xe0 tartiner aux noisettes et au cacao<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.0114564438501761, 'x': 0.53205636137014867, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3560070519033'>3560070519033 / carrefour / Muesli raisins noisettes Bio<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.7866941718162392, 'x': 0.093057722018309363, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/8437015940120'>8437015940120 / carlota-organic / Pat\xe9 de Pimiento y Tofu ecol\xf3gico<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 0.26927744499239714, 'x': 0.65353765218845317, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/40349558'>40349558 / meggle / S\xfc\xdfrahmbutter 82% Fett<br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 2.5000761808106331, 'x': 0.49543179800143994, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/3256222633572'>3256222633572 / u / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}, {'y': 3.0263415640721121, 'x': 2.4862128818934481, 'content': "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/0081185005707'>0081185005707 / nocciolata / <br/><img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' /></a><br/></div>"}];
+    // Scale the range of the data
+    x.domain([0, 1]);
+    y.domain([0, 5]);
+
+    // TODO: ajouter les stripes en s'inspirant du code ci-dessous
+    // *****
+//    canvas.selectAll("rect")
+//            .data(data.sort(function(a, b) { return d3.descending(a.nb_v, b.nb_v) } ))
+//            .enter()
+//            .append("rect")
+//            .attr("width", function(d) { return widthScale(d.nb_v); })
+//            .attr("height", 25)
+//            .attr("y", function(d, i) { return i * 27 })
+//            .attr("fill", "url(#gradientBar)" );
+    // *****
+
+    // Add the scatterplot
+    svg.selectAll("circle")
+            .data(data)
+            .enter().append("circle")
+            .attr("r", 1.5)
+            .attr("cx", function (d) {
+                return d.x * width;
+            })
+            .attr("cy", function (d) {
+                return height * (1 - d.y/5);
+            })
+            .on("mouseover", function (d) {
+                div.transition()
+                        .duration(200)
+                        .style("opacity", .85);
+                div.html(d.content)
+                        .style("left", (d3.event.pageX) + "px")
+                        .style("top", (d3.event.pageY - 28) + "px");
+            })
+            .on("mouseout", function (d) {
+                div.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+            })
+            .on("click", function (d) {
+                window.open("http://www.mediapart.fr");
+            });
+
+    // Add the X Axis
+    svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+    // Add the Y Axis
+    svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
+
+//    });
+
+</script>
+</body>
+</html>

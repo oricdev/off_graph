@@ -124,6 +124,8 @@ class Querier:
             for product_json in products_json:
                 products_fetched.append(Product(product_json))
 
+        # todo: change the number of returned products
+        # return products_fetched[0:5]
         return products_fetched
 
     def find_match(self, a_product, properties_to_match):
@@ -189,6 +191,8 @@ class Graph:
         self.data_set_others = []
         self.xaxis_others_distributed = []
         self.yaxis_others_distributed = []
+        # todo: use this one d3 for d3.js Page!
+        self.d3_json = []
 
     def show(self):
         self.prepare_data()
@@ -282,6 +286,7 @@ class Graph:
                         + "<img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' />" \
                         + "</a><br/></div>"
             self.labels_others.append(the_label)
+            self.d3_json.append({"x": x_coord, "y": y_coord, "content": the_label})
 
         nb_rows = 5  # nb of rows
         # make an empty data set
@@ -335,19 +340,23 @@ class Graph:
         # todo: issue with ticks in mpld3 (not available yet):
         # cf. http://stackoverflow.com/questions/35446525/setting-tick-labels-in-mpld3
 
+        # verbosity details
+        # if self.verbose:
+        print
+        print "Product ref. x / y: %r ∕ %r" % (self.xaxis_prod_ref_real, self.yaxis_prod_ref_real)
+        print "Matching products with COUNTER:"
+        print "\t Counter(x): %r" % Counter(self.xaxis_others_real)
+        print "\t x = %r", self.xaxis_others_distributed
+        print "\t Counter(y): %r" % Counter(self.yaxis_others_real)
+        print "\t y = %r", self.yaxis_others_distributed
+        print
+        print " json for d3 object = %r" % self.d3_json
+
         # !! Activate either mpld3.show or plt.show !!
         mpld3.show()
         # todo: attention -> behaviour is a bit different to mpld3 and currently wrong:
         # todo: .. the white square is currently shown mirrored in comparison with mpld3, which is wrong
         plt.show()
-
-        # verbosity details
-        if self.verbose:
-            print
-            print "Product ref. x / y: %r ∕ %r" % (self.xaxis_prod_ref_real, self.yaxis_prod_ref_real)
-            print "Matching products with COUNTER:"
-            print "\t Counter(x): %r" % Counter(self.xaxis_others_real)
-            print "\t Counter(y): %r" % Counter(self.yaxis_others_real)
 
     def convert_scoreval_to_note(self, score_nutrition):
         # todo: distinguer Eaux et Boissons des aliments solides .. ici, que aliments solides
