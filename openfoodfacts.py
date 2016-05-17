@@ -125,8 +125,8 @@ class Querier:
                 products_fetched.append(Product(product_json))
 
         # todo: change the number of returned products
-        # return products_fetched[0:5]
-        return products_fetched
+        return products_fetched[0:100]
+        # return products_fetched
 
     def find_match(self, a_product, properties_to_match):
         """
@@ -211,6 +211,8 @@ class Graph:
                      "brands_tags": self.product_ref.dic_props["brands_tags"],
                      "url_product": "",
                      "url_img": "",
+                     "lc": self.product_ref.dic_props["lc"],
+                     "images": self.product_ref.dic_props["images"],
                      "score_proximity": self.product_ref.score_proximity,
                      "score_nutrition": self.product_ref.score_nutrition,
                      "x_val_real": self.product_ref.score_proximity,
@@ -227,7 +229,10 @@ class Graph:
                          # todo
                          "brands_tags": product.dic_props["brands_tags"],
                          "url_product": "",
-                         "url_img": ""}
+                         "url_img": "",
+                         "lc": self.product_ref.dic_props["lc"],
+                         "images": self.product_ref.dic_props["images"]
+                         }
             product.compute_scores(self.product_ref)
             mini_prod["score_proximity"] = product.score_proximity
             mini_prod["score_nutrition"] = product.score_nutrition
@@ -279,14 +284,24 @@ class Graph:
 
             self.xaxis_others_distributed.append(x_coord)
             self.yaxis_others_distributed.append(y_coord)
+            print "code product = %r " % mini_prod["code"]
+            if mini_prod["code"] == "0028000682309":
+                print "stop"
+            url_prod = "http://fr.openfoodfacts.org/produit/" + mini_prod["code"]
+            url_img = "http://static.openfoodfacts.org/images/products/" + mini_prod["code"][0:3]+"/" \
+                      + mini_prod["code"][3:6] \
+                      + "/" + mini_prod["code"][6:9]+"/"+mini_prod["code"][9:]+"/front_" \
+                      + mini_prod["lc"] + "." + mini_prod["images"][u"front"][u"rev"] + ".400.jpg"
+            print "img url = %r " % url_img
             the_label = "<div style='background-color: #ffffff'><a href='http://world.openfoodfacts.org/product/" \
                         + mini_prod["code"] + "'>" \
                         + mini_prod["code"] + " / " + " // ".join(mini_prod["brands_tags"]) + " / " \
                         + mini_prod["generic_name"] + "<br/>" \
-                        + "<img src='http://static.openfoodfacts.org/images/products/29099849/front.3.100.jpg' />" \
+                        + "<img src='" + url_img + "' height = '200px' />" \
                         + "</a><br/></div>"
+            self.labels_others.append(url_prod)
             self.labels_others.append(the_label)
-            self.d3_json.append({"x": x_coord, "y": y_coord, "content": the_label})
+            self.d3_json.append({"x": x_coord, "y": y_coord, "url": url_prod, "content": the_label})
 
         nb_rows = 5  # nb of rows
         # make an empty data set
@@ -482,8 +497,9 @@ class Product:
 # ENTRY POINT FOR THE CODE #
 # ##########################
 
+# lc and images->front->rev are used for building the path to the picture of the product
 data_env1 = DataEnv(
-    ["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens", "brands_tags"])
+    ["code", "generic_name", "countries_tags", "categories_tags", "nutriments", "allergens", "brands_tags", "lc", "images"])
 gui = Gui(data_env1)
 querier = Querier(data_env1, True)
 
