@@ -63,7 +63,7 @@ Once the OFF database is decompacted (see "Requirements" above), perform the fol
 - Plot your mouse on any point to see some details of the matching product
 
 <h1>Current bugs</h1>
-- Matplotlib Client graph displays the back point for the reference product correctly, but the corresponding white square is mirrored (probably a discrepancy between plot in mpld3 and matplotlib)
+- Matplotlib Client graph displays the black point for the reference product correctly, but the corresponding white square is mirrored (probably a discrepancy between plot in mpld3 and matplotlib)
 - whereas plot shows correct axis data, mpld3 doesn't (bug referenced in http://stackoverflow.com/questions/35446525/setting-tick-labels-in-mpld3)
 
 <h1>Things to be done next</h1>
